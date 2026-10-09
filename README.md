@@ -126,9 +126,32 @@ npm run check:mcp  # 使用本机 Token，只读调用官方营养工具
 
 ## 自托管在线体验版
 
-提供 [Dockerfile](Dockerfile) 和 [Compose 配置](compose.yaml)。这是**免登录、无数据库的公开体验版**，不是包含注册、计费或多租户隔离的完整商业 SaaS。所有访客共享运营者只读营养数据缓存，身体资料仍仅在访客浏览器中计算。运营者需确认官方 MCP 服务规则允许其使用方式，并承担凭证和服务配额管理责任。
+提供 [systemd 服务](deploy/jintianchiduoshao.service) 和可选 [Docker Compose 配置](compose.yaml)。这是**免登录、无数据库的公开体验版**，不是包含注册、计费或多租户隔离的完整商业 SaaS。所有访客共享运营者只读营养数据缓存，身体资料仍仅在访客浏览器中计算。运营者需确认官方 MCP 服务规则允许其使用方式，并承担凭证和服务配额管理责任。
 
 部署目录建议为 `/opt/jintianchiduoshao`，不要覆盖其他项目。Git 克隆、拉取使用目录属主账号；容器使用非 root 的 Node 用户，根文件系统只读。
+
+### systemd（无需 Docker 镜像）
+
+服务器已有其他 Node 版本时，不全局升级。将 [Node.js 官方](https://nodejs.org/dist/latest-v22.x/) Linux 对应架构的 Node 22 分发包与官方 `SHASUMS256.txt` 核对后，解压至 `/opt/jintianchiduoshao/runtime`，使 `runtime/bin/node` 存在。此目录由 `.gitignore` 忽略。以代码目录属主运行：
+
+```bash
+cd /opt/jintianchiduoshao
+PATH=/opt/jintianchiduoshao/runtime/bin:$PATH npm ci --omit=dev --ignore-scripts
+```
+
+按下方凭证配置创建 `/etc/jintianchiduoshao/app.env` 后，由管理员创建专用无登录系统用户 `jintianchiduoshao`，并安装服务：
+
+```bash
+sudo useradd --system --no-create-home --shell /sbin/nologin jintianchiduoshao
+sudo install -m 644 deploy/jintianchiduoshao.service /etc/systemd/system/jintianchiduoshao.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now jintianchiduoshao
+curl --fail http://127.0.0.1:18085/healthz
+```
+
+服务以独立低权限用户运行、文件系统只读，限制 192 MiB 内存、50% 单核 CPU 和 64 个任务，自动开机启动和崩溃重启。日志使用系统 journald 管理（保留上限由宿主机配置决定）。更新代码或轮换凭证后执行 `sudo systemctl restart jintianchiduoshao`；查看状态用 `systemctl status jintianchiduoshao`，查看近期日志用 `journalctl -u jintianchiduoshao -n 30 --no-pager`。不要同时启动占用同一端口的 Compose 服务。
+
+### 凭证配置与 Docker 可选部署
 
 由服务器管理员创建仅管理员可读的 `/etc/jintianchiduoshao/app.env`（目录权限 `700`，文件权限 `600`），使用本机编辑器配置：
 
@@ -137,7 +160,7 @@ MCD_MCP_TOKEN=
 PUBLIC_ORIGIN=http://your-server-ip:18085
 ```
 
-填入真实 Token 和唯一外部访问源；不要提交该文件。`PUBLIC_ORIGIN` 仅接受包含协议、主机和可选端口的源，不接受路径、用户名或密码。只在显式设置该值时监听 `0.0.0.0`。然后在项目目录：
+填入真实 Token 和唯一外部访问源；不要提交该文件。`PUBLIC_ORIGIN` 仅接受包含协议、主机和可选端口的源，不接受路径、用户名或密码。只在显式设置该值时监听 `0.0.0.0`。若选择 Docker 而非 systemd，在项目目录运行：
 
 ```bash
 docker compose up -d --build
