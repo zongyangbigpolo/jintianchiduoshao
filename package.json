@@ -1,0 +1,19 @@
+{
+  "name": "jintianchiduoshao",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "今天吃多少：基于麦当劳 MCP 实时营养数据的一餐搭配助手",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "demo": "node server.js --demo",
+    "test": "node --test",
+    "check:mcp": "node --env-file-if-exists=.env scripts/check-mcp.js",
+    "plan": "node --env-file-if-exists=.env scripts/plan.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@toon-format/toon": "^4.4.0"
+  }
+}

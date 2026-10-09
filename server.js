@@ -1,0 +1,81 @@
+import http from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { fetchNutrition } from './lib/mcp.js';
+import { demoNutrition } from './lib/demo.js';
+
+const assets = {
+  '/': ['index.html', 'text/html; charset=utf-8'],
+  '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
+  '/planner.js': ['planner.js', 'text/javascript; charset=utf-8'],
+  '/style.css': ['style.css', 'text/css; charset=utf-8']
+};
+
+export function createApp({ demo = false, loadNutrition = () => fetchNutrition(process.env.MCD_MCP_TOKEN) } = {}) {
+  let cache;
+  let pending;
+  const getNutrition = async () => {
+    if (demo) return demoNutrition();
+    if (cache && Date.now() - cache.loadedAt < 5 * 60_000) return cache.data;
+    if (!pending) {
+      pending = loadNutrition().then(data => {
+        cache = { loadedAt: Date.now(), data };
+        return data;
+      }).finally(() => { pending = undefined; });
+    }
+    return pending;
+  };
+  return http.createServer(async (req, res) => {
+    const host = `127.0.0.1:${res.socket.localPort}`;
+    const localhost = `localhost:${res.socket.localPort}`;
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+    if (![host, localhost].includes(req.headers.host) ||
+        (req.headers.origin && ![`http://${host}`, `http://${localhost}`].includes(req.headers.origin)) ||
+        req.headers['sec-fetch-site'] === 'cross-site') {
+      res.writeHead(403).end('Forbidden');
+      return;
+    }
+    if (req.method !== 'GET') {
+      res.writeHead(405, { Allow: 'GET' }).end('Method not allowed');
+      return;
+    }
+    const path = new URL(req.url, `http://${host}`).pathname;
+    if (path === '/api/nutrition') {
+      try {
+        const data = await getNutrition();
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }).end(JSON.stringify(data));
+      } catch {
+        console.error('Nutrition request failed; verify MCP credentials, network and response format. No upstream payload logged.');
+        res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' }).end(JSON.stringify({
+          error: '官方营养数据获取失败。请检查本机 MCD_MCP_TOKEN、网络或服务状态，然后重试。不会用演示数据冒充实时结果。'
+        }));
+      }
+      return;
+    }
+    const asset = Object.hasOwn(assets, path) ? assets[path] : null;
+    if (!asset) {
+      res.writeHead(404).end('Not found');
+      return;
+    }
+    try {
+      const body = await readFile(new URL(`./public/${asset[0]}`, import.meta.url));
+      res.writeHead(200, { 'Content-Type': asset[1] }).end(body);
+    } catch {
+      console.error('Static asset unavailable:', asset[0]);
+      res.writeHead(500).end('Application asset unavailable');
+    }
+  });
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const port = Number(process.env.PORT || 3000);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be an integer from 1 to 65535.');
+  const demo = process.argv.includes('--demo');
+  const server = createApp({ demo });
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`今天吃多少 http://127.0.0.1:${port} (${demo ? 'DEMO / 虚构数据' : 'LIVE / 官方 MCP'})`);
+  });
+}

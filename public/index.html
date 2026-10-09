@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffc928">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23ffce32'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='42' fill='%23242e24'%3E=%3C/text%3E%3C/svg%3E">
+  <title>今天吃多少 · 训练日的麦麦搭配助手</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-icon" aria-hidden="true">=</span> 今天吃多少<span class="brand-en">MEAL, MADE PERSONAL.</span></a>
+    <span class="tag">2026 MCP 创意作品</span>
+  </header>
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">YOUR BODY. YOUR DAY. YOUR MEAL.</p>
+        <h1>今天练什么，<br>这顿<span class="highlight">吃多少？</span></h1>
+        <p class="intro">不用知道体脂率。告诉我你的身高、体重和训练计划，<br class="desktop">把抽象的卡路里，变成看得懂的一餐。</p>
+        <div class="hero-tags"><span>官方 MCP 营养数据</span><span>身体资料留在浏览器</span><span>不下单 · 不读账户</span></div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="art-label">一餐，不用靠猜。</div>
+        <div class="burger"><div class="bun-top">·　·　·</div><div class="lettuce"></div><div class="cheese"></div><div class="patty"></div><div class="bun-bottom"></div></div>
+        <span class="art-note">身体信息 + 今日训练<br>↓<br>你的麦麦搭配</span>
+      </div>
+    </section>
+    <div class="data-status" role="status" aria-live="polite"><span id="source">正在连接官方营养数据…</span><button type="button" id="reload" class="text-button">重新获取</button></div>
+    <div class="workspace">
+      <form id="profile" class="panel">
+        <div class="section-heading"><span class="step">01</span><div><h2>先认识一下你</h2><p>不问体脂率，只做透明的粗估。</p></div></div>
+        <div class="fields">
+          <label>身高 <span>cm</span><input name="height" type="number" min="130" max="220" step="0.1" placeholder="例如 175" required></label>
+          <label>体重 <span>kg</span><input name="weight" type="number" min="35" max="200" step="0.1" placeholder="例如 70" required></label>
+          <label>年龄 <span>岁</span><input name="age" type="number" min="18" max="65" placeholder="例如 28" required></label>
+          <label>生理性别（估算公式使用）<select name="sex" required><option value="">请选择</option><option value="male">男</option><option value="female">女</option></select></label>
+        </div>
+        <fieldset class="shape"><legend>你觉得自己的身材是？</legend><div class="shape-options">
+          <label><input type="radio" name="shape" value="slim" required><span>偏瘦</span></label>
+          <label><input type="radio" name="shape" value="balanced"><span>匀称</span></label>
+          <label><input type="radio" name="shape" value="soft"><span>微胖</span></label>
+        </div></fieldset>
+        <p class="field-note">身材描述只用于扩大体脂不确定范围，不代表健康评价。</p>
+        <div class="section-heading second"><span class="step">02</span><div><h2>今天的训练计划</h2><p>休息日也值得好好吃饭。</p></div></div>
+        <label>日常活动（不含下方训练）<select name="activity"><option value="sedentary">久坐为主 · 办公 / 学习</option><option value="light">日常有较多站立和走动</option><option value="active">体力工作 / 日常持续活动</option></select></label>
+        <div class="fields">
+          <label>训练类型<select name="training" id="training"><option value="rest">今天休息</option><option value="walk">快走</option><option value="strength">力量训练（一般强度）</option><option value="cycle">中等强度骑行</option><option value="run">慢跑（约 8 km/h）</option></select></label>
+          <label>计划时长 <span>分钟</span><input name="minutes" id="minutes" type="number" min="0" max="180" value="0" disabled required></label>
+          <label>今日已吃 <span>kcal · 粗估即可</span><input name="eaten" type="number" min="0" max="10000" value="0" required></label>
+          <label>这顿的份额<select name="share"><option value="0.3">全天参考的 30%</option><option value="0.35" selected>全天参考的 35%</option><option value="0.4">全天参考的 40%</option><option value="0.2">全天参考的 20%</option></select></label>
+        </div>
+        <label>搭配偏好<select name="preference"><option value="balanced">接近一餐参考热量</option><option value="protein">同一热量范围，蛋白质优先</option><option value="sodium">同一热量范围，钠含量优先更少</option></select></label>
+        <label class="consent"><input type="checkbox" name="adultGeneralHealth" required><span>我为 18–65 岁一般健康成年人，无孕期、哺乳期、进食障碍或需医嘱管理的营养需求；理解这不是医疗或营养处方。</span></label>
+        <button type="submit" id="submit" class="primary" disabled>生成我的一餐搭配 <span aria-hidden="true">↗</span></button>
+        <p class="privacy">不上传身高、体重或训练记录，不存入浏览器持久存储。</p>
+      </form>
+      <section class="results" aria-label="个性化一餐结果">
+        <div id="form-error" class="error" role="alert" hidden></div>
+        <div id="empty" class="empty panel"><span class="empty-symbol" aria-hidden="true">≋</span><p class="eyebrow">LESS GUESSING, MORE ENJOYING.</p><h2>你的这一餐，<br>从了解今天开始。</h2><p>填写左侧信息，获得热量参考、<br>训练消耗区间和 3 种餐品组合。</p><div class="empty-bottom">热量看得懂　·　搭配有依据</div></div>
+        <div id="result" hidden>
+          <div class="budget-card"><div class="budget-top"><span>本餐参考上限 · 不是进食限制</span><span id="result-mode"></span></div><div><strong id="budget">—</strong><span> kcal</span></div><p>按全天份额与今日剩余参考值取较小值，不把全天热量都安排成麦当劳。</p></div>
+          <div id="metrics" class="metrics"></div>
+          <p id="estimate-note" class="notice"></p>
+          <div class="section-heading meal-heading"><span class="step">03</span><div><h2>把数字，换成这一餐</h2><p>每项 1 份 · 最多 1 主食 + 1 配餐 + 1 饮品</p></div></div>
+          <div id="meals" class="meals"></div>
+          <details class="explain"><summary>查看计算依据与适用边界</summary><div id="calculation"></div></details>
+        </div>
+      </section>
+    </div>
+    <section class="catalog panel">
+      <div class="catalog-heading"><div><p class="eyebrow">KNOW WHAT'S IN YOUR MEAL.</p><h2>餐品营养，一目了然</h2><p>也可以不填身体资料，直接查表。勾选「不想吃」可从下次搭配中排除。</p></div><label class="search-label">搜索餐品<input type="search" id="search" placeholder="搜索：汉堡、玉米、牛奶…"></label></div>
+      <p class="field-note">数据为官方返回的餐品份量；不是每 100g。排除餐品不等于过敏原筛查，过敏人群请向门店确认。</p>
+      <div class="table-wrap"><table><thead><tr><th>不想吃</th><th>餐品 / 份量</th><th>热量 kcal</th><th>蛋白质 g</th><th>脂肪 g</th><th>碳水 g</th><th>钠 mg</th></tr></thead><tbody id="foods"></tbody></table></div>
+    </section>
+    <footer><strong>今天吃多少 / 非麦当劳官方产品</strong><p>餐品供应、价格、过敏原及实际份量以麦当劳官方渠道和门店为准。本工具不查询门店库存或价格，不能保证组合可购买。<br>估算仅供一般信息参考，不构成医疗、营养或运动建议；保持多样饮食，不因某一餐补偿性节食或运动。</p><a href="https://github.com/zongyangbigpolo/jintianchiduoshao" target="_blank" rel="noreferrer">GitHub 开源项目 ↗</a></footer>
+  </main>
+</body>
+</html>
