@@ -1,0 +1,23 @@
+services:
+  web:
+    build: .
+    image: jintianchiduoshao:local
+    restart: unless-stopped
+    init: true
+    env_file:
+      - /etc/jintianchiduoshao/app.env
+    ports:
+      - "18085:3000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 192m
+    cpus: 0.5
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"

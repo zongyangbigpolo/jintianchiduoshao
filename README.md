@@ -49,7 +49,7 @@ npm run check:mcp
 npm start
 ```
 
-`.env` 已被 Git 忽略。**不要把真实 Token 写进代码、README、Issue、截图或 MCP 配置示例。** 也不要把该本地服务直接暴露到公网。端口冲突时可在 `.env` 中调整 `PORT`；演示模式可用 `PORT=3001 npm run demo`。
+`.env` 已被 Git 忽略。**不要把真实 Token 写进代码、README、Issue、截图或 MCP 配置示例。** 默认仅监听本机；公网部署必须显式配置 `PUBLIC_ORIGIN` 并按照下方部署说明操作。端口冲突时可在 `.env` 中调整 `PORT`；演示模式可用 `PORT=3001 npm run demo`。
 
 实时接口错误会明确显示，**不会静默降级到演示模式**。营养数据在服务端内存缓存 5 分钟，刷新页面不一定发起新上游调用；页面展示实际获取时间。
 
@@ -123,6 +123,35 @@ npm run check:mcp  # 使用本机 Token，只读调用官方营养工具
 ```
 
 原生 JavaScript + Node HTTP 服务，无前端构建步骤；使用官方 MCP TypeScript SDK 的 Streamable HTTP 客户端和 TOON 解码器。GitHub Actions 只运行离线测试，**不需要任何账号凭证**。
+
+## 自托管在线体验版
+
+提供 [Dockerfile](Dockerfile) 和 [Compose 配置](compose.yaml)。这是**免登录、无数据库的公开体验版**，不是包含注册、计费或多租户隔离的完整商业 SaaS。所有访客共享运营者只读营养数据缓存，身体资料仍仅在访客浏览器中计算。运营者需确认官方 MCP 服务规则允许其使用方式，并承担凭证和服务配额管理责任。
+
+部署目录建议为 `/opt/jintianchiduoshao`，不要覆盖其他项目。Git 克隆、拉取使用目录属主账号；容器使用非 root 的 Node 用户，根文件系统只读。
+
+由服务器管理员创建仅管理员可读的 `/etc/jintianchiduoshao/app.env`（目录权限 `700`，文件权限 `600`），使用本机编辑器配置：
+
+```dotenv
+MCD_MCP_TOKEN=
+PUBLIC_ORIGIN=http://your-server-ip:18085
+```
+
+填入真实 Token 和唯一外部访问源；不要提交该文件。`PUBLIC_ORIGIN` 仅接受包含协议、主机和可选端口的源，不接受路径、用户名或密码。只在显式设置该值时监听 `0.0.0.0`。然后在项目目录：
+
+```bash
+docker compose up -d --build
+docker compose ps
+curl --fail http://127.0.0.1:18085/healthz
+```
+
+在云安全组允许入站 TCP **18085** 后，通过 `http://服务器IP:18085` 访问。`/healthz` 只检查进程存活，**不代表上游 MCP 可用**；另通过 `/api/nutrition` 验证真实营养响应。不要将凭证放入访问 URL。
+
+当前配置包括：192 MiB 内存限制、0.5 CPU 上限、日志轮转、崩溃及宿主机重启后自动启动、健康检查、每源 IP 每分钟最多 30 次营养请求及进程全局每分钟最多 120 次请求、5 分钟缓存和上游失败后 30 秒冷却。缓存和限流是单进程内存状态，重启清空；多个副本需要统一配额管理。**Docker 的 unhealthy 状态本身不会触发重启**，生产环境仍需告警或外部编排。程序崩溃由重启策略恢复。
+
+独立 IP 端口 HTTP 仅适合先行体验：网络可被窃听或篡改，不能据此保证浏览器执行的代码完整性；**不要添加登录密码、支付或其他敏感资料上传功能**。正式运营应配置域名、HTTPS、备案（如适用）、隐私政策及监控，并根据实际负载扩容。接反向代理时将 `PUBLIC_ORIGIN` 改为外部 HTTPS 源，代理必须保留 Host；本程序故意不信任 `X-Forwarded-For`，代理后每 IP 限额会共享，应在可信代理层做访客限流后再审视应用限额。
+
+更新时先保留旧镜像以便回滚，再由目录属主拉取源码并运行 `docker compose up -d --build`。停止本项目用 `docker compose stop`，不要停止服务器上的其他服务。凭证轮换后使用 `docker compose up -d --force-recreate`。
 
 ```text
 public/        本地网页、共享估算与搭配算法

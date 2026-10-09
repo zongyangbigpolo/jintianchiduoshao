@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import http from 'node:http';
-import { createApp } from '../server.js';
+import { createApp, validatePublicOrigin } from '../server.js';
 import { demoNutrition } from '../lib/demo.js';
 
 async function serve(t, options) {
@@ -40,7 +40,8 @@ test('live reads coalesce and cache; health information is never sent to loader'
 
 test('upstream failure does not leak details or masquerade as demo; retry succeeds', async t => {
   let calls = 0;
-  const url = await serve(t, { loadNutrition: async () => {
+  let time = 0;
+  const url = await serve(t, { now: () => time, loadNutrition: async () => {
     if (++calls === 1) throw new Error('SENSITIVE-UPSTREAM-DETAIL');
     return { ...demoNutrition(), demo: false };
   } });
@@ -49,7 +50,54 @@ test('upstream failure does not leak details or masquerade as demo; retry succee
   const body = await failed.text();
   assert.ok(!body.includes('SENSITIVE-UPSTREAM-DETAIL'));
   assert.match(body, /不会用演示数据/);
+  assert.equal((await fetch(`${url}/api/nutrition`)).status, 502);
+  assert.equal(calls, 1);
+  time = 30_001;
   assert.equal((await fetch(`${url}/api/nutrition`)).status, 200);
+});
+
+test('public origin must be explicitly configured and must not contain paths or credentials', async t => {
+  for (const origin of ['file:///tmp', 'https://user:secret@example.com', 'https://example.com/app', 'https://example.com/?q=1', 'https://example.com/#x']) {
+    assert.throws(() => validatePublicOrigin(origin));
+  }
+  const url = await serve(t, { demo: true, publicOrigin: 'http://example.com:18085' });
+  const status = await new Promise((resolve, reject) => {
+    http.get(url, { headers: { Host: 'example.com:18085', Origin: 'http://example.com:18085' } }, response => {
+      response.resume();
+      resolve(response.statusCode);
+    }).on('error', reject);
+  });
+  assert.equal(status, 200);
+  assert.equal((await fetch(url, { headers: { Origin: 'http://wrong.example:18085' } })).status, 403);
+});
+
+test('API limits requests per client without trusting spoofed forwarding headers', async t => {
+  let time = 0;
+  const url = await serve(t, { demo: true, now: () => time });
+  for (let i = 0; i < 30; i++) assert.equal((await fetch(`${url}/api/nutrition`)).status, 200);
+  const limited = await fetch(`${url}/api/nutrition`, { headers: { 'X-Forwarded-For': '192.0.2.1' } });
+  assert.equal(limited.status, 429);
+  assert.equal(limited.headers.get('retry-after'), '60');
+  assert.equal((await fetch(`${url}/healthz`)).status, 200);
+  time = 60_001;
+  assert.equal((await fetch(`${url}/api/nutrition`)).status, 200);
+});
+
+test('expired cache is refreshed and is not served as live data on upstream failure', async t => {
+  let time = 0;
+  let calls = 0;
+  const url = await serve(t, { now: () => time, loadNutrition: async () => {
+    calls++;
+    if (calls > 1) throw new Error('Unavailable');
+    return { ...demoNutrition(), demo: false };
+  } });
+  assert.equal((await fetch(`${url}/api/nutrition`)).status, 200);
+  time = 299_999;
+  assert.equal((await fetch(`${url}/api/nutrition`)).status, 200);
+  assert.equal(calls, 1);
+  time = 300_000;
+  assert.equal((await fetch(`${url}/api/nutrition`)).status, 502);
+  assert.equal(calls, 2);
 });
 
 test('blocks foreign origins, DNS rebinding hosts, mutating requests and file traversal', async t => {
