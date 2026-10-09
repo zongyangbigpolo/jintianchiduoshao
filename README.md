@@ -8,7 +8,9 @@
 
 这是 [2026 麦当劳程序员创意开发大赛](https://github.com/M-China/mcd-developer-innovation-challenge)参赛作品，**不是麦当劳官方产品，也不是医疗、营养或运动处方**。
 
-**[快速开始](#3-分钟运行) · [完整页面截图](docs/screenshot.png) · [Agent Skill](skills/jintianchiduoshao/SKILL.md) · [MCP 接入说明](MCP_INTEGRATION.md)**
+**[在线体验](http://47.103.58.159:18085/) · [快速开始](#3-分钟运行) · [完整页面截图](docs/screenshot.png) · [Agent Skill](skills/jintianchiduoshao/SKILL.md) · [MCP 接入说明](MCP_INTEGRATION.md)**
+
+在线体验已部署到阿里云，无需登录或提供 Token，使用官方实时营养数据。当前为 **HTTP 体验入口，尚未启用 HTTPS**；需要更好保护身体资料时，请使用下方本地版。
 
 封面为实际运行页面，使用虚构身体资料和官方营养数据。点击封面可查看完整截图；截图中的餐品数据为拍摄时结果，不代表实时价格或门店供应。
 
