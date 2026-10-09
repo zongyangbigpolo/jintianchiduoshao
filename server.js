@@ -84,7 +84,13 @@ export function createApp({
       res.writeHead(405, { Allow: 'GET' }).end('Method not allowed');
       return;
     }
-    const path = new URL(req.url, `http://${host}`).pathname;
+    let path;
+    try {
+      path = new URL(req.url, `http://${host}`).pathname;
+    } catch {
+      res.writeHead(400).end('Invalid request URL');
+      return;
+    }
     if (path === '/healthz') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }).end(JSON.stringify({
         status: 'ok', mode: demo ? 'demo' : 'live'

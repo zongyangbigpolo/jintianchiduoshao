@@ -115,3 +115,16 @@ test('blocks foreign origins, DNS rebinding hosts, mutating requests and file tr
   assert.equal((await fetch(`${url}/%2e%2e/package.json`)).status, 404);
   assert.equal((await fetch(`${url}/constructor`)).status, 404);
 });
+
+test('malformed request targets return 400 without terminating the public server', async t => {
+  const url = await serve(t, { demo: true });
+  const status = await new Promise((resolve, reject) => {
+    const target = new URL(url);
+    http.get({ hostname: target.hostname, port: target.port, path: 'http://[' }, response => {
+      response.resume();
+      resolve(response.statusCode);
+    }).on('error', reject);
+  });
+  assert.equal(status, 400);
+  assert.equal((await fetch(`${url}/healthz`)).status, 200);
+});
